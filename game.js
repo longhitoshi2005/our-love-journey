@@ -1,0 +1,706 @@
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+const startMenu = document.getElementById("start-menu");
+const storyPanel = document.getElementById("story-panel");
+const endPanel = document.getElementById("end-panel");
+const winPanel = document.getElementById("win-panel");
+const storyTitle = document.getElementById("story-title");
+const storyText = document.getElementById("story-text");
+const endTitle = document.getElementById("end-title");
+const endText = document.getElementById("end-text");
+const levelLabel = document.getElementById("level-label");
+const collectLabel = document.getElementById("collect-label");
+const lettersLabel = document.getElementById("letters-label");
+
+const startBtn = document.getElementById("start-btn");
+const continueBtn = document.getElementById("continue-btn");
+const nextLevelBtn = document.getElementById("next-level-btn");
+const replayBtn = document.getElementById("replay-btn");
+const musicBtn = document.getElementById("music-btn");
+
+const mobileControls = document.getElementById("mobile-controls");
+
+const world = {
+  gravity: 0.6,
+  friction: 0.85,
+  cameraX: 0,
+};
+
+const player = {
+  x: 80,
+  y: 0,
+  w: 36,
+  h: 48,
+  vx: 0,
+  vy: 0,
+  speed: 3.2,
+  jumpPower: 11,
+  grounded: false,
+  hearts: 3,
+  facing: 1,
+};
+
+const keys = {
+  left: false,
+  right: false,
+  up: false,
+  attack: false,
+};
+
+const audio = {
+  enabled: false,
+  context: null,
+  gain: null,
+  loopId: null,
+};
+
+const levels = [
+  {
+    id: 1,
+    title: "First Day We Met",
+    date: "1/1/2024",
+    story: "A spring park, a bright hello, and a shy smile.",
+    background: "spring",
+    collectibles: ["flower", "message", "calendar"],
+    message: "The day our story began – 1/1/2024 ❤️",
+    letters: null,
+    boss: null,
+  },
+  {
+    id: 2,
+    title: "Our First Valentine",
+    date: "2/14/2024",
+    story: "City lights sparkle like hearts and the night feels magical.",
+    background: "night",
+    collectibles: ["heart", "chocolate", "rose"],
+    message: "Our first Valentine together 💖",
+    letters: ["L", "O", "V", "E"],
+    boss: null,
+  },
+  {
+    id: 3,
+    title: "Third Valentine Together",
+    date: "2/14/2026",
+    story: "A sunset castle waits with glowing memories.",
+    background: "sunset",
+    collectibles: ["memory", "heart"],
+    message: "Three Valentines together — and many more to come ❤️",
+    letters: null,
+    boss: "Distance",
+  },
+];
+
+let currentLevelIndex = 0;
+let levelState = null;
+let gameState = "menu"; // menu, story, playing, end, win
+let fireworks = [];
+
+const startGame = () => {
+  currentLevelIndex = 0;
+  setupLevel();
+  showStory();
+};
+
+const setupLevel = () => {
+  const level = levels[currentLevelIndex];
+  levelState = {
+    width: 3200,
+    height: 540,
+    platforms: buildPlatforms(level.id),
+    gaps: buildGaps(level.id),
+    collectibles: buildCollectibles(level.id),
+    enemies: buildEnemies(level.id),
+    letters: level.letters ? buildLetters(level.letters) : [],
+    exit: { x: 3000, y: 360, w: 60, h: 120, unlocked: level.letters === null },
+    collected: 0,
+  };
+  resetPlayer();
+  updateHud();
+};
+
+const resetPlayer = () => {
+  player.x = 80;
+  player.y = 260;
+  player.vx = 0;
+  player.vy = 0;
+  player.grounded = false;
+  world.cameraX = 0;
+};
+
+const buildPlatforms = (id) => {
+  if (id === 1) {
+    return [
+      { x: 0, y: 430, w: 800, h: 120 },
+      { x: 880, y: 460, w: 420, h: 90 },
+      { x: 1350, y: 400, w: 520, h: 120 },
+      { x: 1950, y: 360, w: 480, h: 160 },
+      { x: 2500, y: 420, w: 700, h: 120 },
+    ];
+  }
+  if (id === 2) {
+    return [
+      { x: 0, y: 430, w: 700, h: 120 },
+      { x: 780, y: 380, w: 320, h: 160 },
+      { x: 1180, y: 440, w: 320, h: 100 },
+      { x: 1550, y: 360, w: 350, h: 180 },
+      { x: 2000, y: 420, w: 350, h: 120 },
+      { x: 2450, y: 320, w: 280, h: 220 },
+      { x: 2800, y: 440, w: 380, h: 100 },
+    ];
+  }
+  return [
+    { x: 0, y: 430, w: 720, h: 120 },
+    { x: 820, y: 370, w: 360, h: 200 },
+    { x: 1280, y: 340, w: 360, h: 200 },
+    { x: 1750, y: 390, w: 420, h: 150 },
+    { x: 2250, y: 320, w: 420, h: 220 },
+    { x: 2750, y: 420, w: 400, h: 120 },
+  ];
+};
+
+const buildGaps = (id) => {
+  if (id === 1) {
+    return [
+      { start: 800, end: 880 },
+      { start: 1870, end: 1950 },
+    ];
+  }
+  if (id === 2) {
+    return [
+      { start: 700, end: 780 },
+      { start: 1500, end: 1550 },
+      { start: 2350, end: 2450 },
+    ];
+  }
+  return [
+    { start: 720, end: 820 },
+    { start: 1650, end: 1750 },
+    { start: 2170, end: 2250 },
+  ];
+};
+
+const buildCollectibles = (id) => {
+  const items = [];
+  const base = [250, 520, 860, 1100, 1450, 1760, 2100, 2480, 2850];
+  base.forEach((x, i) => {
+    items.push({
+      x,
+      y: 320 - (i % 3) * 40,
+      type: id === 1 ? (i === 2 ? "calendar" : i % 2 ? "message" : "flower") : id === 2 ? (i % 2 ? "heart" : "chocolate") : i % 2 ? "memory" : "heart",
+      collected: false,
+    });
+  });
+  return items;
+};
+
+const buildEnemies = (id) => {
+  if (id === 1) {
+    return [
+      { x: 500, y: 390, w: 40, h: 30, vx: 0.5, type: "Shyness" },
+      { x: 1550, y: 360, w: 40, h: 30, vx: -0.5, type: "Shyness" },
+    ];
+  }
+  if (id === 2) {
+    return [
+      { x: 950, y: 340, w: 42, h: 32, vx: 0.8, type: "Busy" },
+      { x: 2100, y: 380, w: 42, h: 32, vx: -0.8, type: "Busy" },
+    ];
+  }
+  return [
+    { x: 1900, y: 350, w: 60, h: 50, vx: 1.1, type: "Distance", hp: 3 },
+  ];
+};
+
+const buildLetters = (letters) => {
+  return letters.map((letter, i) => ({
+    x: 850 + i * 300,
+    y: 280 - (i % 2) * 40,
+    letter,
+    collected: false,
+  }));
+};
+
+const updateHud = () => {
+  levelLabel.textContent = `Level ${levels[currentLevelIndex].id}`;
+  collectLabel.textContent = `Collect: ${levelState.collected}`;
+  if (levels[currentLevelIndex].letters) {
+    const collectedLetters = levelState.letters.map((l) => (l.collected ? l.letter : "_"));
+    lettersLabel.textContent = `LOVE: ${collectedLetters.join(" ")}`;
+  } else {
+    lettersLabel.textContent = "";
+  }
+};
+
+const showStory = () => {
+  const level = levels[currentLevelIndex];
+  storyTitle.textContent = `Level ${level.id} — ${level.title}`;
+  storyText.textContent = level.story;
+  setPanel(storyPanel);
+  gameState = "story";
+};
+
+const showEnd = () => {
+  const level = levels[currentLevelIndex];
+  endTitle.textContent = `Level ${level.id} Complete`;
+  endText.textContent = level.message;
+  setPanel(endPanel);
+  gameState = "end";
+};
+
+const showWin = () => {
+  setPanel(winPanel);
+  gameState = "win";
+  startFireworks();
+};
+
+const setPanel = (panel) => {
+  [startMenu, storyPanel, endPanel, winPanel].forEach((p) => p.classList.remove("active"));
+  if (panel) {
+    panel.classList.add("active");
+  }
+};
+
+const handleInput = () => {
+  if (keys.left) {
+    player.vx = Math.max(player.vx - player.speed, -6);
+    player.facing = -1;
+  }
+  if (keys.right) {
+    player.vx = Math.min(player.vx + player.speed, 6);
+    player.facing = 1;
+  }
+  if (keys.up && player.grounded) {
+    player.vy = -player.jumpPower;
+    player.grounded = false;
+  }
+};
+
+const updatePlayer = () => {
+  handleInput();
+  player.vy += world.gravity;
+  player.x += player.vx;
+  player.y += player.vy;
+  player.vx *= world.friction;
+
+  player.grounded = false;
+  levelState.platforms.forEach((platform) => {
+    if (rectIntersect(player, platform)) {
+      const overlapY = player.y + player.h - platform.y;
+      if (player.vy >= 0 && overlapY < 30) {
+        player.y = platform.y - player.h;
+        player.vy = 0;
+        player.grounded = true;
+      }
+    }
+  });
+
+  if (player.y > canvas.height + 200) {
+    resetPlayer();
+  }
+
+  world.cameraX = Math.min(Math.max(player.x - canvas.width / 2, 0), levelState.width - canvas.width);
+};
+
+const updateEnemies = () => {
+  levelState.enemies.forEach((enemy) => {
+    enemy.x += enemy.vx;
+    if (enemy.x < 300 || enemy.x > levelState.width - 300) {
+      enemy.vx *= -1;
+    }
+
+    if (rectIntersect(player, enemy)) {
+      if (player.vy > 1) {
+        player.vy = -8;
+        if (enemy.type === "Distance") {
+          enemy.hp -= 1;
+          if (enemy.hp <= 0) {
+            enemy.defeated = true;
+          }
+        } else {
+          enemy.defeated = true;
+        }
+      } else {
+        resetPlayer();
+      }
+    }
+  });
+
+  levelState.enemies = levelState.enemies.filter((enemy) => !enemy.defeated);
+};
+
+const updateCollectibles = () => {
+  levelState.collectibles.forEach((item) => {
+    if (!item.collected && rectIntersect(player, { x: item.x, y: item.y, w: 30, h: 30 })) {
+      item.collected = true;
+      levelState.collected += 1;
+      updateHud();
+    }
+  });
+
+  levelState.letters.forEach((letter) => {
+    if (!letter.collected && rectIntersect(player, { x: letter.x, y: letter.y, w: 32, h: 32 })) {
+      letter.collected = true;
+      if (levelState.letters.every((l) => l.collected)) {
+        levelState.exit.unlocked = true;
+      }
+      updateHud();
+    }
+  });
+};
+
+const updateExit = () => {
+  if (levelState.exit.unlocked && rectIntersect(player, levelState.exit)) {
+    showEnd();
+  }
+};
+
+const rectIntersect = (a, b) => {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+};
+
+const drawBackground = (type) => {
+  if (type === "spring") {
+    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    gradient.addColorStop(0, "#c7f7ff");
+    gradient.addColorStop(1, "#fef9e7");
+    ctx.fillStyle = gradient;
+  } else if (type === "night") {
+    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    gradient.addColorStop(0, "#1b1c3a");
+    gradient.addColorStop(1, "#3b1d52");
+    ctx.fillStyle = gradient;
+  } else {
+    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    gradient.addColorStop(0, "#ffcfb2");
+    gradient.addColorStop(1, "#f06a8b");
+    ctx.fillStyle = gradient;
+  }
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  if (type === "spring") {
+    drawClouds("#ffffff", 0.2);
+    drawGround("#79c267", "#5ca64c");
+  } else if (type === "night") {
+    drawCityLights();
+    drawFireworks(0.3);
+    drawGround("#34364f", "#24253b");
+  } else {
+    drawCastle();
+    drawClouds("#fff3e6", 0.25);
+    drawGround("#9c6b4c", "#6b4b3a");
+  }
+};
+
+const drawClouds = (color, alpha) => {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = color;
+  for (let i = 0; i < 6; i += 1) {
+    const x = (i * 180 - world.cameraX * 0.2) % (canvas.width + 200);
+    const y = 60 + (i % 2) * 30;
+    ctx.beginPath();
+    ctx.ellipse(x, y, 60, 26, 0, 0, Math.PI * 2);
+    ctx.ellipse(x + 45, y + 10, 40, 18, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+};
+
+const drawCityLights = () => {
+  ctx.save();
+  ctx.fillStyle = "#281038";
+  ctx.fillRect(0, 320, canvas.width, 220);
+  ctx.fillStyle = "#ff7aa2";
+  for (let i = 0; i < 9; i += 1) {
+    const x = (i * 120 - world.cameraX * 0.35) % (canvas.width + 140);
+    ctx.fillRect(x, 260, 70, 60);
+    ctx.fillRect(x + 15, 330, 40, 30);
+  }
+  ctx.restore();
+};
+
+const drawCastle = () => {
+  ctx.save();
+  ctx.fillStyle = "#6e3b6e";
+  ctx.fillRect(200 - world.cameraX * 0.1, 240, 160, 160);
+  ctx.fillRect(370 - world.cameraX * 0.1, 200, 90, 200);
+  ctx.fillStyle = "#ffd1dc";
+  ctx.fillRect(240 - world.cameraX * 0.1, 300, 70, 100);
+  ctx.restore();
+};
+
+const drawGround = (main, shade) => {
+  ctx.save();
+  ctx.fillStyle = main;
+  ctx.fillRect(0, 430, canvas.width, 110);
+  ctx.fillStyle = shade;
+  ctx.fillRect(0, 430, canvas.width, 16);
+  ctx.restore();
+};
+
+const drawPlayer = () => {
+  ctx.save();
+  ctx.fillStyle = "#ff6b8b";
+  ctx.fillRect(player.x - world.cameraX, player.y, player.w, player.h);
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(player.x - world.cameraX + 8, player.y + 12, 8, 8);
+  ctx.fillRect(player.x - world.cameraX + 20, player.y + 12, 8, 8);
+  ctx.restore();
+};
+
+const drawPlatforms = () => {
+  ctx.save();
+  ctx.fillStyle = "#ffc6da";
+  levelState.platforms.forEach((platform) => {
+    ctx.fillRect(platform.x - world.cameraX, platform.y, platform.w, platform.h);
+    ctx.fillStyle = "#f08fae";
+    ctx.fillRect(platform.x - world.cameraX, platform.y, platform.w, 12);
+    ctx.fillStyle = "#ffc6da";
+  });
+  ctx.restore();
+};
+
+const drawCollectibles = () => {
+  levelState.collectibles.forEach((item) => {
+    if (item.collected) return;
+    ctx.save();
+    if (item.type === "flower") ctx.fillStyle = "#ffb703";
+    if (item.type === "message") ctx.fillStyle = "#ff7a93";
+    if (item.type === "calendar") ctx.fillStyle = "#5ab0ff";
+    if (item.type === "heart") ctx.fillStyle = "#ff4d6d";
+    if (item.type === "chocolate") ctx.fillStyle = "#7f5539";
+    if (item.type === "rose") ctx.fillStyle = "#f25f5c";
+    if (item.type === "memory") ctx.fillStyle = "#ffd166";
+    ctx.fillRect(item.x - world.cameraX, item.y, 26, 26);
+    ctx.restore();
+  });
+
+  levelState.letters.forEach((letter) => {
+    if (letter.collected) return;
+    ctx.save();
+    ctx.fillStyle = "#ffe066";
+    ctx.fillRect(letter.x - world.cameraX, letter.y, 28, 28);
+    ctx.fillStyle = "#7a1f3d";
+    ctx.font = "bold 16px Nunito";
+    ctx.fillText(letter.letter, letter.x - world.cameraX + 8, letter.y + 20);
+    ctx.restore();
+  });
+};
+
+const drawEnemies = () => {
+  levelState.enemies.forEach((enemy) => {
+    ctx.save();
+    ctx.fillStyle = enemy.type === "Distance" ? "#4d194d" : "#6a4c93";
+    ctx.fillRect(enemy.x - world.cameraX, enemy.y, enemy.w, enemy.h);
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(enemy.x - world.cameraX + 8, enemy.y + 10, 6, 6);
+    ctx.fillRect(enemy.x - world.cameraX + enemy.w - 14, enemy.y + 10, 6, 6);
+    ctx.restore();
+  });
+};
+
+const drawExit = () => {
+  ctx.save();
+  ctx.fillStyle = levelState.exit.unlocked ? "#ff85a1" : "#555";
+  ctx.fillRect(levelState.exit.x - world.cameraX, levelState.exit.y, levelState.exit.w, levelState.exit.h);
+  ctx.fillStyle = "#fff";
+  ctx.font = "bold 14px Nunito";
+  ctx.fillText(levelState.exit.unlocked ? "EXIT" : "LOCK", levelState.exit.x - world.cameraX + 6, levelState.exit.y + 20);
+  ctx.restore();
+};
+
+const updateFireworks = () => {
+  fireworks.forEach((spark) => {
+    spark.x += spark.vx;
+    spark.y += spark.vy;
+    spark.life -= 1;
+  });
+  fireworks = fireworks.filter((spark) => spark.life > 0);
+};
+
+const drawFireworks = (alpha = 1) => {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  fireworks.forEach((spark) => {
+    ctx.fillStyle = spark.color;
+    ctx.beginPath();
+    ctx.arc(spark.x, spark.y, 3, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  ctx.restore();
+};
+
+const startFireworks = () => {
+  fireworks = [];
+  for (let i = 0; i < 120; i += 1) {
+    fireworks.push({
+      x: canvas.width / 2 + Math.cos(i) * 120,
+      y: 120 + Math.sin(i) * 60,
+      vx: (Math.random() - 0.5) * 2,
+      vy: (Math.random() - 0.2) * 2,
+      life: 80 + Math.random() * 60,
+      color: i % 2 ? "#ffd166" : "#ff6b8b",
+    });
+  }
+};
+
+const update = () => {
+  if (gameState === "playing") {
+    updatePlayer();
+    updateEnemies();
+    updateCollectibles();
+    updateExit();
+  }
+  if (gameState === "win") {
+    updateFireworks();
+  }
+};
+
+const draw = () => {
+  const level = levels[currentLevelIndex];
+  drawBackground(level.background);
+  drawPlatforms();
+  drawCollectibles();
+  drawEnemies();
+  drawExit();
+  drawPlayer();
+  if (gameState === "win") {
+    drawFireworks();
+  }
+};
+
+const loop = () => {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+};
+
+const createMusic = () => {
+  if (audio.context) return;
+  audio.context = new AudioContext();
+  audio.gain = audio.context.createGain();
+  audio.gain.gain.value = 0.08;
+  audio.gain.connect(audio.context.destination);
+
+  const melody = [
+    440, 494, 523, 587, 523, 494, 440, 392,
+    392, 440, 494, 523, 494, 440, 392, 349,
+  ];
+  let index = 0;
+
+  const playNote = () => {
+    if (!audio.enabled) return;
+    const osc = audio.context.createOscillator();
+    osc.type = "triangle";
+    osc.frequency.value = melody[index % melody.length];
+    osc.connect(audio.gain);
+    osc.start();
+    osc.stop(audio.context.currentTime + 0.22);
+    index += 1;
+    audio.loopId = setTimeout(playNote, 260);
+  };
+
+  playNote();
+};
+
+const toggleMusic = () => {
+  audio.enabled = !audio.enabled;
+  if (audio.enabled) {
+    createMusic();
+  } else if (audio.loopId) {
+    clearTimeout(audio.loopId);
+    audio.loopId = null;
+  }
+};
+
+const handleKey = (event, value) => {
+  switch (event.code) {
+    case "ArrowLeft":
+    case "KeyA":
+      keys.left = value;
+      break;
+    case "ArrowRight":
+    case "KeyD":
+      keys.right = value;
+      break;
+    case "ArrowUp":
+    case "KeyW":
+    case "Space":
+      keys.up = value;
+      break;
+    case "KeyJ":
+      keys.attack = value;
+      break;
+    default:
+      break;
+  }
+};
+
+const bindControls = () => {
+  document.addEventListener("keydown", (event) => {
+    handleKey(event, true);
+  });
+  document.addEventListener("keyup", (event) => {
+    handleKey(event, false);
+  });
+
+  mobileControls.querySelectorAll("button").forEach((btn) => {
+    const action = btn.dataset.action;
+    const setAction = (value) => {
+      if (action === "left") keys.left = value;
+      if (action === "right") keys.right = value;
+      if (action === "jump") keys.up = value;
+      if (action === "attack") keys.attack = value;
+    };
+
+    btn.addEventListener("touchstart", (event) => {
+      event.preventDefault();
+      setAction(true);
+    });
+    btn.addEventListener("touchend", () => setAction(false));
+    btn.addEventListener("mousedown", () => setAction(true));
+    btn.addEventListener("mouseup", () => setAction(false));
+    btn.addEventListener("mouseleave", () => setAction(false));
+  });
+};
+
+startBtn.addEventListener("click", () => {
+  setPanel(null);
+  gameState = "playing";
+  startGame();
+});
+
+continueBtn.addEventListener("click", () => {
+  setPanel(null);
+  gameState = "playing";
+});
+
+nextLevelBtn.addEventListener("click", () => {
+  if (currentLevelIndex < levels.length - 1) {
+    currentLevelIndex += 1;
+    setupLevel();
+    showStory();
+  } else {
+    showWin();
+  }
+});
+
+replayBtn.addEventListener("click", () => {
+  setPanel(null);
+  startGame();
+  gameState = "playing";
+});
+
+musicBtn.addEventListener("click", () => {
+  toggleMusic();
+});
+
+const init = () => {
+  bindControls();
+  setPanel(startMenu);
+  setupLevel();
+  loop();
+};
+
+init();

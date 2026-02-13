@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Our Love Journey</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+    <header class="game-header">
+      <h1>Our Love Journey</h1>
+      <p class="subtitle">A romantic side-scrolling adventure</p>
+    </header>
+
+    <div id="ui-layer">
+      <div id="start-menu" class="panel active">
+        <h2>Start Menu</h2>
+        <p>Run, jump, collect memories, and finish our story.</p>
+        <button id="start-btn">Start Journey</button>
+        <button id="music-btn">Toggle Music</button>
+        <p class="hint">Controls: Arrow keys / WASD / Space. Mobile: on-screen buttons.</p>
+      </div>
+
+      <div id="story-panel" class="panel">
+        <h2 id="story-title"></h2>
+        <p id="story-text"></p>
+        <button id="continue-btn">Continue</button>
+      </div>
+
+      <div id="end-panel" class="panel">
+        <h2 id="end-title"></h2>
+        <p id="end-text"></p>
+        <button id="next-level-btn">Next Level</button>
+      </div>
+
+      <div id="win-panel" class="panel">
+        <h2>We Did It!</h2>
+        <p>Three Valentines together — and many more to come ❤️</p>
+        <button id="replay-btn">Play Again</button>
+      </div>
+    </div>
+
+    <div class="hud">
+      <div id="level-label">Level 1</div>
+      <div id="collect-label">Collect: 0</div>
+      <div id="letters-label">LOVE: _ _ _ _</div>
+    </div>
+
+    <canvas id="game" width="960" height="540"></canvas>
+
+    <div id="mobile-controls">
+      <div class="row">
+        <button data-action="left">◀</button>
+        <button data-action="right">▶</button>
+      </div>
+      <div class="row">
+        <button data-action="jump">⤒</button>
+        <button data-action="attack">★</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
