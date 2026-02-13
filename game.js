@@ -20,6 +20,8 @@ const replayBtn = document.getElementById("replay-btn");
 const musicBtn = document.getElementById("music-btn");
 
 const mobileControls = document.getElementById("mobile-controls");
+const joystick = document.getElementById("joystick");
+const joystickThumb = document.getElementById("joystick-thumb");
 
 const world = {
   gravity: 0.6,
@@ -30,8 +32,8 @@ const world = {
 const player = {
   x: 80,
   y: 0,
-  w: 36,
-  h: 48,
+  w: 78,
+  h: 52,
   vx: 0,
   vy: 0,
   speed: 3.2,
@@ -55,37 +57,48 @@ const audio = {
   loopId: null,
 };
 
+const faceImages = {
+  me: new Image(),
+  partner: new Image(),
+};
+
+faceImages.me.src = "assets/P1.jpg";
+faceImages.partner.src = "assets/P2.jpg";
+
+const bossImage = new Image();
+bossImage.src = "assets/boss.jpg";
+
 const levels = [
   {
     id: 1,
-    title: "First Day We Met",
+    title: "Ngày đầu 2 con chó béo gặp nhau",
     date: "1/1/2024",
-    story: "A spring park, a bright hello, and a shy smile.",
+    story: "Một buổi sáng đầu năm thật đẹp",
     background: "spring",
     collectibles: ["flower", "message", "calendar"],
-    message: "The day our story began – 1/1/2024 ❤️",
+    message: "Ngày chúng ta bắt đầu – 1/1/2024 ❤️",
     letters: null,
     boss: null,
   },
   {
     id: 2,
-    title: "Our First Valentine",
+    title: "Valentine đầu tiên",
     date: "2/14/2024",
-    story: "City lights sparkle like hearts and the night feels magical.",
+    story: "Trao nhau những món quà dễ thương",
     background: "night",
     collectibles: ["heart", "chocolate", "rose"],
-    message: "Our first Valentine together 💖",
-    letters: ["L", "O", "V", "E"],
+    message: "Valentine đầu tiên của chúng ta 💖",
+    letters: ["Y", "Ê", "U", "E", "M"],
     boss: null,
   },
   {
     id: 3,
-    title: "Third Valentine Together",
+    title: "Mùa Valentine thứ 3",
     date: "2/14/2026",
-    story: "A sunset castle waits with glowing memories.",
+    story: "Mai nè chó mập",
     background: "sunset",
     collectibles: ["memory", "heart"],
-    message: "Three Valentines together — and many more to come ❤️",
+    message: "Valentine thứ ba của chúng ta ❤️",
     letters: null,
     boss: "Distance",
   },
@@ -95,6 +108,16 @@ let currentLevelIndex = 0;
 let levelState = null;
 let gameState = "menu"; // menu, story, playing, end, win
 let fireworks = [];
+let heartParticles = [];
+let tick = 0;
+
+const joystickState = {
+  active: false,
+  pointerId: null,
+  originX: 0,
+  originY: 0,
+  dx: 0,
+};
 
 const startGame = () => {
   currentLevelIndex = 0;
@@ -131,31 +154,39 @@ const resetPlayer = () => {
 const buildPlatforms = (id) => {
   if (id === 1) {
     return [
-      { x: 0, y: 430, w: 800, h: 120 },
-      { x: 880, y: 460, w: 420, h: 90 },
-      { x: 1350, y: 400, w: 520, h: 120 },
-      { x: 1950, y: 360, w: 480, h: 160 },
-      { x: 2500, y: 420, w: 700, h: 120 },
+      { x: 0, y: 430, w: 800, h: 120, type: "ground" },
+      { x: 880, y: 460, w: 420, h: 90, type: "ground" },
+      { x: 1350, y: 400, w: 520, h: 120, type: "ground" },
+      { x: 1950, y: 360, w: 480, h: 160, type: "ground" },
+      { x: 2500, y: 420, w: 700, h: 120, type: "ground" },
+      { x: 620, y: 320, w: 120, h: 28, type: "brick" },
+      { x: 1050, y: 300, w: 160, h: 28, type: "brick" },
+      { x: 2200, y: 300, w: 140, h: 28, type: "brick" },
     ];
   }
   if (id === 2) {
     return [
-      { x: 0, y: 430, w: 700, h: 120 },
-      { x: 780, y: 380, w: 320, h: 160 },
-      { x: 1180, y: 440, w: 320, h: 100 },
-      { x: 1550, y: 360, w: 350, h: 180 },
-      { x: 2000, y: 420, w: 350, h: 120 },
-      { x: 2450, y: 320, w: 280, h: 220 },
-      { x: 2800, y: 440, w: 380, h: 100 },
+      { x: 0, y: 430, w: 700, h: 120, type: "ground" },
+      { x: 780, y: 380, w: 320, h: 160, type: "ground" },
+      { x: 1180, y: 440, w: 320, h: 100, type: "ground" },
+      { x: 1550, y: 360, w: 350, h: 180, type: "ground" },
+      { x: 2000, y: 420, w: 350, h: 120, type: "ground" },
+      { x: 2450, y: 320, w: 280, h: 220, type: "ground" },
+      { x: 2800, y: 440, w: 380, h: 100, type: "ground" },
+      { x: 980, y: 300, w: 160, h: 26, type: "moving", vx: 1.1, minX: 900, maxX: 1200 },
+      { x: 1900, y: 280, w: 150, h: 26, type: "moving", vx: -1, minX: 1750, maxX: 2100 },
+      { x: 2350, y: 250, w: 120, h: 26, type: "brick" },
     ];
   }
   return [
-    { x: 0, y: 430, w: 720, h: 120 },
-    { x: 820, y: 370, w: 360, h: 200 },
-    { x: 1280, y: 340, w: 360, h: 200 },
-    { x: 1750, y: 390, w: 420, h: 150 },
-    { x: 2250, y: 320, w: 420, h: 220 },
-    { x: 2750, y: 420, w: 400, h: 120 },
+    { x: 0, y: 430, w: 720, h: 120, type: "ground" },
+    { x: 820, y: 370, w: 360, h: 200, type: "ground" },
+    { x: 1280, y: 340, w: 360, h: 200, type: "ground" },
+    { x: 1750, y: 390, w: 420, h: 150, type: "ground" },
+    { x: 2250, y: 320, w: 420, h: 220, type: "ground" },
+    { x: 2750, y: 420, w: 400, h: 120, type: "ground" },
+    { x: 1100, y: 280, w: 140, h: 26, type: "brick" },
+    { x: 2050, y: 260, w: 160, h: 26, type: "brick" },
   ];
 };
 
@@ -291,6 +322,9 @@ const updatePlayer = () => {
         player.y = platform.y - player.h;
         player.vy = 0;
         player.grounded = true;
+        if (platform.type === "moving") {
+          player.x += platform.vx;
+        }
       }
     }
   });
@@ -334,6 +368,7 @@ const updateCollectibles = () => {
     if (!item.collected && rectIntersect(player, { x: item.x, y: item.y, w: 30, h: 30 })) {
       item.collected = true;
       levelState.collected += 1;
+      spawnHeartParticles(item.x, item.y, 6);
       updateHud();
     }
   });
@@ -341,6 +376,7 @@ const updateCollectibles = () => {
   levelState.letters.forEach((letter) => {
     if (!letter.collected && rectIntersect(player, { x: letter.x, y: letter.y, w: 32, h: 32 })) {
       letter.collected = true;
+      spawnHeartParticles(letter.x, letter.y, 5);
       if (levelState.letters.every((l) => l.collected)) {
         levelState.exit.unlocked = true;
       }
@@ -390,6 +426,7 @@ const drawBackground = (type) => {
     drawClouds("#fff3e6", 0.25);
     drawGround("#9c6b4c", "#6b4b3a");
   }
+  drawAmbientHearts();
 };
 
 const drawClouds = (color, alpha) => {
@@ -440,31 +477,70 @@ const drawGround = (main, shade) => {
 };
 
 const drawPlayer = () => {
+  const baseX = player.x - world.cameraX;
+  const baseY = player.y;
+  const personGap = 6;
+  const personWidth = (player.w - personGap) / 2;
+  const personHeight = player.h;
+
+  drawPerson(baseX, baseY, personWidth, personHeight, "#ff6b8b", faceImages.me);
+  drawPerson(baseX + personWidth + personGap, baseY, personWidth, personHeight, "#ff93b0", faceImages.partner);
+
   ctx.save();
-  ctx.fillStyle = "#ff6b8b";
-  ctx.fillRect(player.x - world.cameraX, player.y, player.w, player.h);
-  ctx.fillStyle = "#fff";
-  ctx.fillRect(player.x - world.cameraX + 8, player.y + 12, 8, 8);
-  ctx.fillRect(player.x - world.cameraX + 20, player.y + 12, 8, 8);
+  ctx.strokeStyle = "#ffb3c8";
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.moveTo(baseX + personWidth - 2, baseY + personHeight - 18);
+  ctx.lineTo(baseX + personWidth + personGap + 2, baseY + personHeight - 18);
+  ctx.stroke();
+  ctx.restore();
+};
+
+const drawPerson = (x, y, w, h, outfitColor, faceImage) => {
+  const headSize = Math.min(26, w - 4);
+  const headX = x + w / 2;
+  const headY = y + 10;
+
+  ctx.save();
+  ctx.fillStyle = outfitColor;
+  ctx.fillRect(x + 4, y + 18, w - 8, h - 18);
+  ctx.fillStyle = "#ffe5ec";
+  ctx.fillRect(x + 10, y + h - 14, w - 20, 10);
+
+  ctx.beginPath();
+  ctx.arc(headX, headY, headSize / 2, 0, Math.PI * 2);
+  ctx.closePath();
+  ctx.clip();
+
+  if (faceImage.complete && faceImage.naturalWidth) {
+    ctx.drawImage(faceImage, headX - headSize / 2, headY - headSize / 2, headSize, headSize);
+  } else {
+    ctx.fillStyle = "#ffd6e7";
+    ctx.fillRect(headX - headSize / 2, headY - headSize / 2, headSize, headSize);
+  }
+
+  ctx.restore();
+
+  ctx.save();
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.7)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(headX, headY, headSize / 2, 0, Math.PI * 2);
+  ctx.stroke();
   ctx.restore();
 };
 
 const drawPlatforms = () => {
-  ctx.save();
-  ctx.fillStyle = "#ffc6da";
   levelState.platforms.forEach((platform) => {
-    ctx.fillRect(platform.x - world.cameraX, platform.y, platform.w, platform.h);
-    ctx.fillStyle = "#f08fae";
-    ctx.fillRect(platform.x - world.cameraX, platform.y, platform.w, 12);
-    ctx.fillStyle = "#ffc6da";
+    drawPlatformTiles(platform);
   });
-  ctx.restore();
 };
 
 const drawCollectibles = () => {
   levelState.collectibles.forEach((item) => {
     if (item.collected) return;
     ctx.save();
+    const bob = Math.sin((tick + item.x) * 0.02) * 4;
     if (item.type === "flower") ctx.fillStyle = "#ffb703";
     if (item.type === "message") ctx.fillStyle = "#ff7a93";
     if (item.type === "calendar") ctx.fillStyle = "#5ab0ff";
@@ -472,18 +548,19 @@ const drawCollectibles = () => {
     if (item.type === "chocolate") ctx.fillStyle = "#7f5539";
     if (item.type === "rose") ctx.fillStyle = "#f25f5c";
     if (item.type === "memory") ctx.fillStyle = "#ffd166";
-    ctx.fillRect(item.x - world.cameraX, item.y, 26, 26);
+    ctx.fillRect(item.x - world.cameraX, item.y + bob, 26, 26);
     ctx.restore();
   });
 
   levelState.letters.forEach((letter) => {
     if (letter.collected) return;
     ctx.save();
+    const bob = Math.sin((tick + letter.x) * 0.02) * 4;
     ctx.fillStyle = "#ffe066";
-    ctx.fillRect(letter.x - world.cameraX, letter.y, 28, 28);
+    ctx.fillRect(letter.x - world.cameraX, letter.y + bob, 28, 28);
     ctx.fillStyle = "#7a1f3d";
     ctx.font = "bold 16px Nunito";
-    ctx.fillText(letter.letter, letter.x - world.cameraX + 8, letter.y + 20);
+    ctx.fillText(letter.letter, letter.x - world.cameraX + 8, letter.y + bob + 20);
     ctx.restore();
   });
 };
@@ -491,11 +568,25 @@ const drawCollectibles = () => {
 const drawEnemies = () => {
   levelState.enemies.forEach((enemy) => {
     ctx.save();
-    ctx.fillStyle = enemy.type === "Distance" ? "#4d194d" : "#6a4c93";
-    ctx.fillRect(enemy.x - world.cameraX, enemy.y, enemy.w, enemy.h);
-    ctx.fillStyle = "#fff";
-    ctx.fillRect(enemy.x - world.cameraX + 8, enemy.y + 10, 6, 6);
-    ctx.fillRect(enemy.x - world.cameraX + enemy.w - 14, enemy.y + 10, 6, 6);
+    if (enemy.type === "Distance" && bossImage.complete && bossImage.naturalWidth) {
+      const size = Math.max(enemy.w, enemy.h) + 14;
+      const centerX = enemy.x - world.cameraX + enemy.w / 2;
+      const centerY = enemy.y + enemy.h / 2;
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, size / 2, 0, Math.PI * 2);
+      ctx.closePath();
+      ctx.clip();
+      ctx.drawImage(bossImage, centerX - size / 2, centerY - size / 2, size, size);
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.7)";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = enemy.type === "Distance" ? "#4d194d" : "#6a4c93";
+      ctx.fillRect(enemy.x - world.cameraX, enemy.y, enemy.w, enemy.h);
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(enemy.x - world.cameraX + 8, enemy.y + 10, 6, 6);
+      ctx.fillRect(enemy.x - world.cameraX + enemy.w - 14, enemy.y + 10, 6, 6);
+    }
     ctx.restore();
   });
 };
@@ -510,6 +601,37 @@ const drawExit = () => {
   ctx.restore();
 };
 
+const drawPlatformTiles = (platform) => {
+  const tile = 32;
+  const offsetX = platform.x - world.cameraX;
+  const rows = Math.max(1, Math.floor(platform.h / tile));
+  const cols = Math.max(1, Math.floor(platform.w / tile));
+  const topColor = platform.type === "ground" ? "#ffb3c8" : "#ffd6e7";
+  const fillColor = platform.type === "ground" ? "#f08fae" : platform.type === "moving" ? "#ff9fb5" : "#f5b5c8";
+
+  ctx.save();
+  for (let y = 0; y < rows; y += 1) {
+    for (let x = 0; x < cols; x += 1) {
+      ctx.fillStyle = y === 0 ? topColor : fillColor;
+      ctx.fillRect(offsetX + x * tile, platform.y + y * tile, tile - 2, tile - 2);
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
+      ctx.strokeRect(offsetX + x * tile, platform.y + y * tile, tile - 2, tile - 2);
+    }
+  }
+  ctx.restore();
+};
+
+const updatePlatforms = () => {
+  levelState.platforms.forEach((platform) => {
+    if (platform.type === "moving") {
+      platform.x += platform.vx;
+      if (platform.x < platform.minX || platform.x + platform.w > platform.maxX) {
+        platform.vx *= -1;
+      }
+    }
+  });
+};
+
 const updateFireworks = () => {
   fireworks.forEach((spark) => {
     spark.x += spark.vx;
@@ -517,6 +639,57 @@ const updateFireworks = () => {
     spark.life -= 1;
   });
   fireworks = fireworks.filter((spark) => spark.life > 0);
+};
+
+const spawnHeartParticles = (x, y, count) => {
+  for (let i = 0; i < count; i += 1) {
+    heartParticles.push({
+      x,
+      y,
+      vx: (Math.random() - 0.5) * 2.2,
+      vy: -1 - Math.random() * 2,
+      life: 60 + Math.random() * 30,
+      size: 6 + Math.random() * 6,
+      color: Math.random() > 0.5 ? "#ff6b8b" : "#ffd166",
+    });
+  }
+};
+
+const updateHeartParticles = () => {
+  heartParticles.forEach((heart) => {
+    heart.x += heart.vx;
+    heart.y += heart.vy;
+    heart.vy += 0.03;
+    heart.life -= 1;
+  });
+  heartParticles = heartParticles.filter((heart) => heart.life > 0);
+};
+
+const drawHeartParticles = () => {
+  heartParticles.forEach((heart) => {
+    drawHeart(heart.x - world.cameraX, heart.y, heart.size, heart.color, heart.life / 90);
+  });
+};
+
+const drawHeart = (x, y, size, color, alpha = 1) => {
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.bezierCurveTo(x - size, y - size, x - size * 1.4, y + size * 0.6, x, y + size * 1.6);
+  ctx.bezierCurveTo(x + size * 1.4, y + size * 0.6, x + size, y - size, x, y);
+  ctx.fill();
+  ctx.restore();
+};
+
+const drawAmbientHearts = () => {
+  const spacing = 220;
+  for (let i = 0; i < 6; i += 1) {
+    const x = (i * spacing + 120 - world.cameraX * 0.15) % (canvas.width + 200);
+    const y = 90 + Math.sin((tick + i * 30) * 0.03) * 16;
+    drawHeart(x, y, 12, "rgba(255, 110, 140, 0.55)", 0.9);
+  }
 };
 
 const drawFireworks = (alpha = 1) => {
@@ -546,14 +719,18 @@ const startFireworks = () => {
 };
 
 const update = () => {
+  tick += 1;
   if (gameState === "playing") {
+    updatePlatforms();
     updatePlayer();
     updateEnemies();
     updateCollectibles();
     updateExit();
+    updateHeartParticles();
   }
   if (gameState === "win") {
     updateFireworks();
+    updateHeartParticles();
   }
 };
 
@@ -562,6 +739,7 @@ const draw = () => {
   drawBackground(level.background);
   drawPlatforms();
   drawCollectibles();
+  drawHeartParticles();
   drawEnemies();
   drawExit();
   drawPlayer();
@@ -665,6 +843,56 @@ const bindControls = () => {
   });
 };
 
+const bindJoystick = () => {
+  if (!joystick || !joystickThumb) return;
+
+  const moveThumb = (x, y) => {
+    joystickThumb.style.left = `${x}px`;
+    joystickThumb.style.top = `${y}px`;
+  };
+
+  const resetThumb = () => {
+    joystickThumb.style.left = "50%";
+    joystickThumb.style.top = "50%";
+  };
+
+  joystick.addEventListener("pointerdown", (event) => {
+    joystickState.active = true;
+    joystickState.pointerId = event.pointerId;
+    const rect = joystick.getBoundingClientRect();
+    joystickState.originX = rect.left + rect.width / 2;
+    joystickState.originY = rect.top + rect.height / 2;
+    joystick.setPointerCapture(event.pointerId);
+  });
+
+  joystick.addEventListener("pointermove", (event) => {
+    if (!joystickState.active || event.pointerId !== joystickState.pointerId) return;
+    const dx = event.clientX - joystickState.originX;
+    const dy = event.clientY - joystickState.originY;
+    const distance = Math.min(50, Math.hypot(dx, dy));
+    const angle = Math.atan2(dy, dx);
+    const x = Math.cos(angle) * distance;
+    const y = Math.sin(angle) * distance;
+    joystickState.dx = x / 50;
+    keys.left = joystickState.dx < -0.25;
+    keys.right = joystickState.dx > 0.25;
+    moveThumb(x + joystick.offsetWidth / 2, y + joystick.offsetHeight / 2);
+  });
+
+  const endDrag = () => {
+    joystickState.active = false;
+    joystickState.pointerId = null;
+    joystickState.dx = 0;
+    keys.left = false;
+    keys.right = false;
+    resetThumb();
+  };
+
+  joystick.addEventListener("pointerup", endDrag);
+  joystick.addEventListener("pointercancel", endDrag);
+  joystick.addEventListener("pointerleave", endDrag);
+};
+
 startBtn.addEventListener("click", () => {
   setPanel(null);
   gameState = "playing";
@@ -698,6 +926,7 @@ musicBtn.addEventListener("click", () => {
 
 const init = () => {
   bindControls();
+  bindJoystick();
   setPanel(startMenu);
   setupLevel();
   loop();

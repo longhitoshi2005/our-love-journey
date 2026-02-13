@@ -3,56 +3,68 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Our Love Journey</title>
+  <title>Tình yêu chó béo</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <div id="heart-field">
+    <span class="floating-heart"></span>
+    <span class="floating-heart"></span>
+    <span class="floating-heart"></span>
+    <span class="floating-heart"></span>
+    <span class="floating-heart"></span>
+    <span class="floating-heart"></span>
+    <span class="floating-heart"></span>
+    <span class="floating-heart"></span>
+  </div>
+
   <div id="app">
     <header class="game-header">
-      <h1>Our Love Journey</h1>
-      <p class="subtitle">A romantic side-scrolling adventure</p>
+      <h1>Tình yêu chó béo</h1>
+      <p class="subtitle">1 mùa va lung tung nữa giữa 1 con chó gầy và 1 con chó béo</p>
     </header>
 
     <div id="ui-layer">
       <div id="start-menu" class="panel active">
-        <h2>Start Menu</h2>
-        <p>Run, jump, collect memories, and finish our story.</p>
-        <button id="start-btn">Start Journey</button>
-        <button id="music-btn">Toggle Music</button>
-        <p class="hint">Controls: Arrow keys / WASD / Space. Mobile: on-screen buttons.</p>
+        <h2>Bắt đầu thôi nào</h2>
+        <p>Chạy, nhảy, thu thập kỷ niệm, và hoàn thành câu chuyện của chúng ta.</p>
+        <button id="start-btn">Bắt đầu hành trình</button>
+        <button id="music-btn">Bật/Tắt Nhạc</button>
+        <p class="hint">Điều khiển: Phím mũi tên / WASD / Space. Di động: các nút trên màn hình.</p>
       </div>
 
       <div id="story-panel" class="panel">
         <h2 id="story-title"></h2>
         <p id="story-text"></p>
-        <button id="continue-btn">Continue</button>
+        <button id="continue-btn">Tiếp tục</button>
       </div>
 
       <div id="end-panel" class="panel">
         <h2 id="end-title"></h2>
         <p id="end-text"></p>
-        <button id="next-level-btn">Next Level</button>
+        <button id="next-level-btn">Cấp độ tiếp theo</button>
       </div>
 
       <div id="win-panel" class="panel">
-        <h2>We Did It!</h2>
-        <p>Three Valentines together — and many more to come ❤️</p>
-        <button id="replay-btn">Play Again</button>
+        <h2>Chó mập đã làm được!</h2>
+        <p>Ba mùa Valentine bên nhau — và còn nhiều hơn nữa đang chờ đón ❤️</p>
+        <button id="replay-btn">Chơi lại</button>
       </div>
     </div>
 
     <div class="hud">
       <div id="level-label">Level 1</div>
-      <div id="collect-label">Collect: 0</div>
-      <div id="letters-label">LOVE: _ _ _ _</div>
+      <div id="collect-label">Điểm: 0</div>
+      <div id="letters-label">: _ _ _ _</div>
     </div>
 
     <canvas id="game" width="960" height="540"></canvas>
 
     <div id="mobile-controls">
       <div class="row">
-        <button data-action="left">◀</button>
-        <button data-action="right">▶</button>
+        <div id="joystick">
+          <div id="joystick-thumb"></div>
+        </div>
       </div>
       <div class="row">
         <button data-action="jump">⤒</button>
